@@ -23,10 +23,10 @@ public class Main {
 
       BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
       PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-
+      
       List<String> lines = new ArrayList<>();
       String clientInput;
-      while (!(clientInput = in.readLine()).isEmpty()) {
+      while ((clientInput = in.readLine()) != null && !clientInput.isEmpty()) {
         lines.add(clientInput);
       }
 
