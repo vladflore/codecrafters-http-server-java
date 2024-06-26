@@ -19,4 +19,30 @@ public class Request {
     public String getRequestTarget() {
         return requestLine.split("\s")[1];
     }
+
+    public String getRequestLine() {
+        return requestLine;
+    }
+
+    public List<String> getHeaders() {
+        return List.copyOf(headers);
+    }
+
+    public String getHeaderByName(String headerName) {
+        for (String header : headers) {
+            if (header.toLowerCase().startsWith("user-agent")) {
+                return (header.split(":")[1]).trim();
+            }
+        }
+        return "";
+    }
+
+    @Override
+    public String toString() {
+        return """
+                requestLine=%s
+                Headers=%s
+                Body=%s
+                """.formatted(requestLine, headers, body);
+    }
 }

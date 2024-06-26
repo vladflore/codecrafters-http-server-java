@@ -4,6 +4,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,9 +23,14 @@ public class Main {
 
       BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
       PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-      String line = in.readLine();
 
-      Request request = RequestParser.parse(line);
+      List<String> lines = new ArrayList<>();
+      String clientInput;
+      while (!(clientInput = in.readLine()).isEmpty()) {
+        lines.add(clientInput);
+      }
+
+      Request request = RequestParser.parse(lines);
 
       if (request == null) {
         return;
@@ -40,10 +47,15 @@ public class Main {
         String echo = echoMatcher.group("echo");
         out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
             + "\r\n\r\n" + echo);
+      } else if (requestTarget.equals("/user-agent")) {
+        System.out.println(request);
+        String userAgent = request.getHeaderByName("User-Agent");
+        out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length
+            + "\r\n\r\n" + userAgent);
       } else {
         out.write(NOT_FOUND);
       }
-      
+
       out.flush();
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
