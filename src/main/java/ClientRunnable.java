@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 public class ClientRunnable implements Runnable {
     private static final String NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\n";
     private static final String OK = "HTTP/1.1 200 OK\r\n\r\n";
+    private static final String CREATED = "HTTP/1.1 201 Created\r\n\r\n";
 
     private final Socket socket;
     private final String rootDirectory;
@@ -31,9 +32,16 @@ public class ClientRunnable implements Runnable {
 
             List<String> lines = new ArrayList<>();
             String clientInput;
+            // read until the body
             while ((clientInput = in.readLine()) != null && !clientInput.isEmpty()) {
                 lines.add(clientInput);
             }
+            // read the body
+            StringBuffer sb = new StringBuffer();
+            while (in.ready()) {
+                sb.append((char) in.read());
+            }
+            lines.add(sb.toString());
 
             Request request = RequestParser.parse(lines);
 
@@ -61,7 +69,7 @@ public class ClientRunnable implements Runnable {
                 out.write(
                         "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length
                                 + "\r\n\r\n" + userAgent);
-            } else if (filesMatcher.matches()) {
+            } else if (request.getRequestMethod().equals("GET") && filesMatcher.matches()) {
                 String fileName = filesMatcher.group("filename");
                 Path path = Paths.get(rootDirectory, fileName);
                 if (!Files.exists(path)) {
@@ -73,6 +81,12 @@ public class ClientRunnable implements Runnable {
                                     + fileContent.getBytes().length
                                     + "\r\n\r\n" + fileContent);
                 }
+            } else if (request.getRequestMethod().equals("POST") && filesMatcher.matches()) {
+                String fileName = filesMatcher.group("filename");
+                Path path = Paths.get(rootDirectory, fileName);
+                Path newFile = Files.createFile(path);
+                Files.writeString(newFile, request.getBody());
+                out.write(CREATED);
             } else {
                 out.write(NOT_FOUND);
             }

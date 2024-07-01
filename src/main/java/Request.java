@@ -37,6 +37,10 @@ public class Request {
         return "";
     }
 
+    public String getRequestMethod() {
+        return requestLine.split("\s")[0];
+    }
+
     @Override
     public String toString() {
         return """
@@ -44,5 +48,9 @@ public class Request {
                 Headers=%s
                 Body=%s
                 """.formatted(requestLine, headers, body);
+    }
+
+    public String getBody() {
+        return body;
     }
 }

@@ -11,7 +11,7 @@ public class Main {
 
       String rootDirectory = "";
 
-      if (args.length >= 2) {
+      if (args.length > 1 && args[0].equals("--directory")) {
         rootDirectory = args[1];
       }
 
