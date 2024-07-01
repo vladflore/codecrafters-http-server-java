@@ -3,6 +3,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -13,9 +16,11 @@ public class ClientRunnable implements Runnable {
     private static final String OK = "HTTP/1.1 200 OK\r\n\r\n";
 
     private final Socket socket;
+    private final String rootDirectory;
 
-    public ClientRunnable(Socket clientSocket) {
+    public ClientRunnable(Socket clientSocket, String rootDirectory) {
         this.socket = clientSocket;
+        this.rootDirectory = rootDirectory;
     }
 
     @Override
@@ -41,6 +46,9 @@ public class ClientRunnable implements Runnable {
             Pattern echoPattern = Pattern.compile("/echo/(?<echo>.+)");
             Matcher echoMatcher = echoPattern.matcher(requestTarget);
 
+            Pattern filesPattern = Pattern.compile("/files/(?<filename>.+)");
+            Matcher filesMatcher = filesPattern.matcher(requestTarget);
+
             if (requestTarget.equals("/")) {
                 out.write(OK);
             } else if (echoMatcher.matches()) {
@@ -53,6 +61,18 @@ public class ClientRunnable implements Runnable {
                 out.write(
                         "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length
                                 + "\r\n\r\n" + userAgent);
+            } else if (filesMatcher.matches()) {
+                String fileName = filesMatcher.group("filename");
+                Path path = Paths.get(rootDirectory, fileName);
+                if (!Files.exists(path)) {
+                    out.write(NOT_FOUND);
+                } else {
+                    String fileContent = Files.readString(path);
+                    out.write(
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                                    + fileContent.getBytes().length
+                                    + "\r\n\r\n" + fileContent);
+                }
             } else {
                 out.write(NOT_FOUND);
             }

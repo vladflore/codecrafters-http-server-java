@@ -9,9 +9,15 @@ public class Main {
     try (ServerSocket serverSocket = new ServerSocket(4221)) {
       serverSocket.setReuseAddress(true);
 
+      String rootDirectory = "";
+
+      if (args.length >= 2) {
+        rootDirectory = args[1];
+      }
+
       while (true) {
         Socket clientSocket = serverSocket.accept();
-        Thread clientThread = new Thread(new ClientRunnable(clientSocket));
+        Thread clientThread = new Thread(new ClientRunnable(clientSocket, rootDirectory));
         clientThread.start();
       }
 
