@@ -62,7 +62,7 @@ public class ClientRunnable implements Runnable {
             } else if (echoMatcher.matches()) {
                 String echo = echoMatcher.group("echo");
                 String encodingHeader = request.getHeaderByName("Accept-Encoding");
-                if ("gzip".equals(encodingHeader)) {
+                if (encodingHeader.contains("gzip")) {
                     out.write(
                             "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
                                     + echo.getBytes().length
