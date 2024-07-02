@@ -61,10 +61,17 @@ public class ClientRunnable implements Runnable {
                 out.write(OK);
             } else if (echoMatcher.matches()) {
                 String echo = echoMatcher.group("echo");
-                out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
-                        + "\r\n\r\n" + echo);
+                String encodingHeader = request.getHeaderByName("Accept-Encoding");
+                if ("gzip".equals(encodingHeader)) {
+                    out.write(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
+                                    + echo.getBytes().length
+                                    + "\r\n\r\n" + echo);
+                } else {
+                    out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
+                            + "\r\n\r\n" + echo);
+                }
             } else if (requestTarget.equals("/user-agent")) {
-                System.out.println(request);
                 String userAgent = request.getHeaderByName("User-Agent");
                 out.write(
                         "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length

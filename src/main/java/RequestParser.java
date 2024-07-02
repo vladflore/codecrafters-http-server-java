@@ -21,11 +21,12 @@ public class RequestParser {
     }
 
     public static void main(String[] args) {
-        String request = "POST /files/orange_raspberry_pear_grape HTTP/1.1\r\nHost: localhost:4221\r\nContent-Length: 61\r\nContent-Type: application/octet-stream\r\n\r\ngrape orange mango pineapple pineapple strawberry banana pear";
+        String request = "POST /files/orange_raspberry_pear_grape HTTP/1.1\r\nHost: localhost:4221\r\nContent-Length: 61\r\nContent-Type: application/octet-stream\r\nAccept-Encoding: gzip\r\n\r\ngrape orange mango pineapple pineapple strawberry banana pear";
         Request r = RequestParser.parse(Arrays.asList(request.split("\r\n")));
         System.out.println(r.getRequestLine());
         System.out.println(r.getHeaders());
         System.out.println(r.getHeaderByName("User-Agent"));
+        System.out.println(r.getHeaderByName("Accept-Encoding"));
         System.out.println(r.getBody());
     }
 

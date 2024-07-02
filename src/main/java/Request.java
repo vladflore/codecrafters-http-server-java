@@ -30,7 +30,7 @@ public class Request {
 
     public String getHeaderByName(String headerName) {
         for (String header : headers) {
-            if (header.toLowerCase().startsWith("user-agent")) {
+            if (header.toLowerCase().startsWith(headerName.toLowerCase())) {
                 return (header.split(":")[1]).trim();
             }
         }
