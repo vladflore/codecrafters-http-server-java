@@ -17,7 +17,7 @@ public class RequestParser {
         return new Request(
                 requestLine,
                 List.copyOf(headers),
-                request.get(request.size() - 1));
+                request.getLast());
     }
 
     public static void main(String[] args) {
