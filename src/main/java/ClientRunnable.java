@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 
 public class ClientRunnable implements Runnable {
     private static final String NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\n";
@@ -63,10 +65,17 @@ public class ClientRunnable implements Runnable {
                 String echo = echoMatcher.group("echo");
                 String encodingHeader = request.getHeaderByName("Accept-Encoding");
                 if (encodingHeader.contains("gzip")) {
-                    out.write(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
-                                    + echo.getBytes().length
-                                    + "\r\n\r\n" + echo);
+                    try (var obj = new ByteArrayOutputStream();
+                            var gzip = new GZIPOutputStream(obj);) {
+                        gzip.write(echo.getBytes());
+                        gzip.finish();
+                        byte[] compressed = obj.toByteArray();
+                        var toSend = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
+                                + compressed.length
+                                + "\r\n\r\n";
+                        socket.getOutputStream().write(toSend.getBytes());
+                        socket.getOutputStream().write(compressed);
+                    }
                 } else {
                     out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
                             + "\r\n\r\n" + echo);
