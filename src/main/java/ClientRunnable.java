@@ -16,9 +16,9 @@ import java.util.zip.GZIPOutputStream;
 
 public class ClientRunnable implements Runnable {
 
-    private static final String NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\n";
-    private static final String OK = "HTTP/1.1 200 OK\r\n\r\n";
-    private static final String CREATED = "HTTP/1.1 201 Created\r\n\r\n";
+    private static final String NOT_FOUND = "HTTP/1.1 404 Not Found%s\r\n\r\n";
+    private static final String OK = "HTTP/1.1 200 OK%s\r\n\r\n";
+    private static final String CREATED = "HTTP/1.1 201 Created%s\r\n\r\n";
 
     private final Socket socket;
     private final String rootDirectory;
@@ -62,8 +62,14 @@ public class ClientRunnable implements Runnable {
                 Pattern filesPattern = Pattern.compile("/files/(?<filename>.+)");
                 Matcher filesMatcher = filesPattern.matcher(requestTarget);
 
+                var shouldCloseConnection = "close".equalsIgnoreCase(request.getHeaderByName("Connection"));
+                var connectionHeader = "";
+                if (shouldCloseConnection) {
+                    connectionHeader = "\r\nConnection: close";
+                }
+
                 if (requestTarget.equals("/")) {
-                    out.write(OK);
+                    out.write(OK.formatted(connectionHeader));
                 } else if (echoMatcher.matches()) {
                     String echo = echoMatcher.group("echo");
                     String encodingHeader = request.getHeaderByName("Accept-Encoding");
@@ -72,30 +78,30 @@ public class ClientRunnable implements Runnable {
                             gzip.write(echo.getBytes());
                             gzip.finish();
                             byte[] compressed = obj.toByteArray();
-                            var toSend = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
+                            var toSend = "HTTP/1.1 200 OK%s\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: ".formatted(connectionHeader)
                                     + compressed.length
                                     + "\r\n\r\n";
                             socket.getOutputStream().write(toSend.getBytes());
                             socket.getOutputStream().write(compressed);
                         }
                     } else {
-                        out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
+                        out.write("HTTP/1.1 200 OK%s\r\nContent-Type: text/plain\r\nContent-Length: ".formatted(connectionHeader) + echo.getBytes().length
                                 + "\r\n\r\n" + echo);
                     }
                 } else if (requestTarget.equals("/user-agent")) {
                     String userAgent = request.getHeaderByName("User-Agent");
                     out.write(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length
+                            "HTTP/1.1 200 OK%s\r\nContent-Type: text/plain\r\nContent-Length: ".formatted(connectionHeader) + userAgent.getBytes().length
                             + "\r\n\r\n" + userAgent);
                 } else if (request.getRequestMethod().equals("GET") && filesMatcher.matches()) {
                     String fileName = filesMatcher.group("filename");
                     Path path = Paths.get(rootDirectory, fileName);
                     if (!Files.exists(path)) {
-                        out.write(NOT_FOUND);
+                        out.write(NOT_FOUND.formatted(connectionHeader));
                     } else {
                         String fileContent = Files.readString(path);
                         out.write(
-                                "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                                "HTTP/1.1 200 OK%s\r\nContent-Type: application/octet-stream\r\nContent-Length: ".formatted(connectionHeader)
                                 + fileContent.getBytes().length
                                 + "\r\n\r\n" + fileContent);
                     }
@@ -104,14 +110,14 @@ public class ClientRunnable implements Runnable {
                     Path path = Paths.get(rootDirectory, fileName);
                     Path newFile = Files.createFile(path);
                     Files.writeString(newFile, request.getBody());
-                    out.write(CREATED);
+                    out.write(CREATED.formatted(connectionHeader));
                 } else {
-                    out.write(NOT_FOUND);
+                    out.write(NOT_FOUND.formatted(connectionHeader));
                 }
                 out.flush();
 
-                var shouldCloseConnection = request.getHeaderByName("connection").equalsIgnoreCase("close");
-                if(shouldCloseConnection){
+                if (shouldCloseConnection) {
+                    socket.close();
                     break;
                 }
             }
