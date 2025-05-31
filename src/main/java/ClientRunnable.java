@@ -1,3 +1,4 @@
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 public class ClientRunnable implements Runnable {
+
     private static final String NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\n";
     private static final String OK = "HTTP/1.1 200 OK\r\n\r\n";
     private static final String CREATED = "HTTP/1.1 201 Created\r\n\r\n";
@@ -32,82 +34,87 @@ public class ClientRunnable implements Runnable {
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-            List<String> lines = new ArrayList<>();
-            String clientInput;
-            // read until the body
-            while ((clientInput = in.readLine()) != null && !clientInput.isEmpty()) {
-                lines.add(clientInput);
-            }
-            // read the body
-            StringBuffer sb = new StringBuffer();
-            while (in.ready()) {
-                sb.append((char) in.read());
-            }
-            lines.add(sb.toString());
+            while (true) {
+                List<String> lines = new ArrayList<>();
+                String clientInput;
+                // read until the body
+                while ((clientInput = in.readLine()) != null && !clientInput.isEmpty()) {
+                    lines.add(clientInput);
+                }
+                // read the body
+                var sb = new StringBuilder();
+                while (in.ready()) {
+                    sb.append((char) in.read());
+                }
+                lines.add(sb.toString());
 
-            Request request = RequestParser.parse(lines);
+                Request request = RequestParser.parse(lines);
 
-            if (request == null) {
-                return;
-            }
+                if (request == null) {
+                    return;
+                }
 
-            String requestTarget = request.getRequestTarget();
+                String requestTarget = request.getRequestTarget();
 
-            Pattern echoPattern = Pattern.compile("/echo/(?<echo>.+)");
-            Matcher echoMatcher = echoPattern.matcher(requestTarget);
+                Pattern echoPattern = Pattern.compile("/echo/(?<echo>.+)");
+                Matcher echoMatcher = echoPattern.matcher(requestTarget);
 
-            Pattern filesPattern = Pattern.compile("/files/(?<filename>.+)");
-            Matcher filesMatcher = filesPattern.matcher(requestTarget);
+                Pattern filesPattern = Pattern.compile("/files/(?<filename>.+)");
+                Matcher filesMatcher = filesPattern.matcher(requestTarget);
 
-            if (requestTarget.equals("/")) {
-                out.write(OK);
-            } else if (echoMatcher.matches()) {
-                String echo = echoMatcher.group("echo");
-                String encodingHeader = request.getHeaderByName("Accept-Encoding");
-                if (encodingHeader.contains("gzip")) {
-                    try (var obj = new ByteArrayOutputStream();
-                            var gzip = new GZIPOutputStream(obj);) {
-                        gzip.write(echo.getBytes());
-                        gzip.finish();
-                        byte[] compressed = obj.toByteArray();
-                        var toSend = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
-                                + compressed.length
-                                + "\r\n\r\n";
-                        socket.getOutputStream().write(toSend.getBytes());
-                        socket.getOutputStream().write(compressed);
+                if (requestTarget.equals("/")) {
+                    out.write(OK);
+                } else if (echoMatcher.matches()) {
+                    String echo = echoMatcher.group("echo");
+                    String encodingHeader = request.getHeaderByName("Accept-Encoding");
+                    if (encodingHeader.contains("gzip")) {
+                        try (var obj = new ByteArrayOutputStream(); var gzip = new GZIPOutputStream(obj);) {
+                            gzip.write(echo.getBytes());
+                            gzip.finish();
+                            byte[] compressed = obj.toByteArray();
+                            var toSend = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
+                                    + compressed.length
+                                    + "\r\n\r\n";
+                            socket.getOutputStream().write(toSend.getBytes());
+                            socket.getOutputStream().write(compressed);
+                        }
+                    } else {
+                        out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
+                                + "\r\n\r\n" + echo);
                     }
-                } else {
-                    out.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + echo.getBytes().length
-                            + "\r\n\r\n" + echo);
-                }
-            } else if (requestTarget.equals("/user-agent")) {
-                String userAgent = request.getHeaderByName("User-Agent");
-                out.write(
-                        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length
-                                + "\r\n\r\n" + userAgent);
-            } else if (request.getRequestMethod().equals("GET") && filesMatcher.matches()) {
-                String fileName = filesMatcher.group("filename");
-                Path path = Paths.get(rootDirectory, fileName);
-                if (!Files.exists(path)) {
-                    out.write(NOT_FOUND);
-                } else {
-                    String fileContent = Files.readString(path);
+                } else if (requestTarget.equals("/user-agent")) {
+                    String userAgent = request.getHeaderByName("User-Agent");
                     out.write(
-                            "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
-                                    + fileContent.getBytes().length
-                                    + "\r\n\r\n" + fileContent);
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + userAgent.getBytes().length
+                            + "\r\n\r\n" + userAgent);
+                } else if (request.getRequestMethod().equals("GET") && filesMatcher.matches()) {
+                    String fileName = filesMatcher.group("filename");
+                    Path path = Paths.get(rootDirectory, fileName);
+                    if (!Files.exists(path)) {
+                        out.write(NOT_FOUND);
+                    } else {
+                        String fileContent = Files.readString(path);
+                        out.write(
+                                "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                                + fileContent.getBytes().length
+                                + "\r\n\r\n" + fileContent);
+                    }
+                } else if (request.getRequestMethod().equals("POST") && filesMatcher.matches()) {
+                    String fileName = filesMatcher.group("filename");
+                    Path path = Paths.get(rootDirectory, fileName);
+                    Path newFile = Files.createFile(path);
+                    Files.writeString(newFile, request.getBody());
+                    out.write(CREATED);
+                } else {
+                    out.write(NOT_FOUND);
                 }
-            } else if (request.getRequestMethod().equals("POST") && filesMatcher.matches()) {
-                String fileName = filesMatcher.group("filename");
-                Path path = Paths.get(rootDirectory, fileName);
-                Path newFile = Files.createFile(path);
-                Files.writeString(newFile, request.getBody());
-                out.write(CREATED);
-            } else {
-                out.write(NOT_FOUND);
-            }
+                out.flush();
 
-            out.flush();
+                var shouldCloseConnection = request.getHeaderByName("connection").equalsIgnoreCase("close");
+                if(shouldCloseConnection){
+                    break;
+                }
+            }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
